@@ -1,0 +1,14 @@
+project.android.compileSdkVersion 25;
+project.android.buildToolsVersion "25.0.0"
+
+project.android.defaultConfig.minSdkVersion 21
+project.android.defaultConfig.targetSdkVersion 25
+
+project.android.lintOptions.warningsAsErrors = true
+project.android.lintOptions.textReport = true
+
+project.android.sourceSets.main.java.srcDirs += 'src/main/kotlin'
+project.android.sourceSets.androidTest.java.srcDirs += 'src/androidTest/kotlin'
+project.android.sourceSets.test.java.srcDirs += 'src/test/kotlin'
+
+project.android.testOptions.unitTests.returnDefaultValues = true

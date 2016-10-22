@@ -1,0 +1,71 @@
+apply plugin: 'maven'
+apply plugin: 'signing'
+
+group = 'com.nhaarman'
+version = rootProject.ext.versionName
+def sonatypeUsername = hasProperty('sonatype_username') ? sonatype_username : System.getenv('SONATYPE_USERNAME')
+def sonatypePassword = hasProperty('sonatype_password') ? sonatype_password : System.getenv('SONATYPE_PASSWORD')
+
+
+task javadocJar(type: Jar, dependsOn: dokka) {
+    classifier = 'javadoc'
+    from 'build/javadoc'
+}
+
+task sourcesJar(type: Jar) {
+    from android.sourceSets.main.java.srcDirs
+    classifier = 'sources'
+}
+
+artifacts {
+    archives javadocJar
+    archives sourcesJar
+}
+
+signing {
+    sign configurations.archives
+}
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+            repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2") {
+                authentication(
+                        userName: sonatypeUsername,
+                        password: sonatypePassword
+                )
+            }
+
+            pom.project {
+                name 'AsyncAwait-Android'
+                packaging 'aar'
+                description 'Async-Await in Android'
+                url 'https://github.com/nhaarman/asyncawait-android'
+
+                scm {
+                    url 'scm:git@github.com:nhaarman/asyncawait-android.git'
+                    connection 'scm:git@github.com:nhaarman/asyncawait-android.git'
+                    developerConnection 'scm:git@github.com:nhaarman/asyncawait-android.git'
+                }
+
+                licenses {
+                    license {
+                        name 'Apache 2.0'
+                        distribution 'repo'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id 'nhaarman'
+                        name 'Niek Haarman'
+                    }
+                }
+            }
+        }
+    }
+
+    dependsOn dokka
+}

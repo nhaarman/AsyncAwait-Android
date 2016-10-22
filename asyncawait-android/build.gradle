@@ -1,0 +1,35 @@
+apply plugin: "com.android.library"
+apply plugin: "kotlin-android"
+apply plugin: "org.jetbrains.dokka"
+apply from: rootProject.projectDir.absolutePath + '/android.gradle';
+apply from: "../gradle/scripts/publishing.gradle"
+
+android {
+    defaultConfig {
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+    }
+}
+
+dependencies {
+    compile kotlinStdLib
+
+    testCompile junit
+    testCompile expectKt
+
+    androidTestCompile junit
+    androidTestCompile expectKt
+    androidTestCompile androidSupportTestRunner
+    androidTestCompile androidSupportTestRules
+}
+
+dokka {
+    outputFormat = "html"
+    outputDirectory = "$buildDir/javadoc"
+    sourceDirs = files("src/main/kotlin")
+
+    linkMapping {
+        dir = "src/main/kotlin"
+        url = "https://github.com/nhaarman/asyncawait-android/tree/master/asyncawait-android/src/main/kotlin"
+        suffix = "#L"
+    }
+}

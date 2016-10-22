@@ -1,0 +1,36 @@
+buildscript {
+    apply from: './dependencies.gradle'
+
+    repositories {
+        jcenter()
+        mavenCentral()
+        maven { url 'https://dl.bintray.com/kotlin/kotlin-eap-1.1/' }
+    }
+
+    dependencies {
+        classpath androidBuildTools
+        classpath gradleVersionsPlugin
+        classpath kotlinGradlePlugin
+        classpath dokkaGradlePlugin
+    }
+}
+
+apply plugin: 'com.github.ben-manes.versions'
+project.apply from: './dependencies.gradle'
+apply from: 'gradle/scripts/tagging.gradle'
+
+subprojects {
+    buildscript {
+        repositories {
+            jcenter()
+            mavenCentral()
+            maven { url 'https://dl.bintray.com/kotlin/kotlin-eap-1.1/' }
+        }
+    }
+
+    repositories {
+        maven { url 'https://dl.bintray.com/kotlin/kotlin-eap-1.1' }
+        jcenter()
+        mavenCentral()
+    }
+}
