@@ -4,6 +4,7 @@ import com.nhaarman.expect.expect
 import org.junit.Before
 import org.junit.Test
 import java.util.concurrent.TimeUnit.MILLISECONDS
+import java.util.concurrent.TimeUnit.SECONDS
 
 @Suppress("IllegalIdentifier")
 class AsyncTest {
@@ -20,7 +21,7 @@ class AsyncTest {
     @Test
     fun `waiting on a directly terminating non-parameterized async returns the result`() {
         /* When */
-        val result = async { Unit }.wait()
+        val result = async { Unit }.testWait()
 
         /* Then */
         expect(result).toBe(Unit)
@@ -29,7 +30,7 @@ class AsyncTest {
     @Test
     fun `waiting on a directly terminating async returns the result`() {
         /* When */
-        val result = async<String> { resultString }.wait()
+        val result = async<String> { resultString }.testWait()
 
         /* Then */
         expect(result).toBe(resultString)
@@ -38,7 +39,7 @@ class AsyncTest {
     @Test
     fun `waiting on an async that sleeps still returns the result`() {
         /* When */
-        val result = async<String> { Thread.sleep(100); resultString }.wait()
+        val result = async<String> { Thread.sleep(100); resultString }.testWait()
 
         /* Then */
         expect(result).toBe(resultString)
@@ -53,7 +54,7 @@ class AsyncTest {
             expect(Thread.currentThread().name).toContain("pool")
 
             resultString
-        }.wait()
+        }.testWait()
 
         /* Then */
         expect(result).toBe(resultString)
@@ -73,7 +74,7 @@ class AsyncTest {
         async<String> {
             await {}
             error("Expected")
-        }.wait()
+        }.testWait()
     }
 
     @Test
@@ -85,7 +86,7 @@ class AsyncTest {
             } catch(e: IllegalStateException) {
                 resultString
             }
-        }.wait()
+        }.testWait()
 
         /* Then */
         expect(result).toBe(resultString)
@@ -97,7 +98,7 @@ class AsyncTest {
         val result = try {
             async<String> {
                 await<String> { error("Error") }
-            }.wait()
+            }.testWait()
         } catch(e: IllegalStateException) {
             resultString
         }
@@ -116,7 +117,7 @@ class AsyncTest {
         task.cancel()
 
         /* When */
-        task.wait()
+        task.testWait()
     }
 
     @Test
@@ -124,7 +125,7 @@ class AsyncTest {
         /* When */
         val result = async<String> {
             await(async<String> { resultString })
-        }.wait()
+        }.testWait()
 
         /* Then */
         expect(result).toBe(resultString)
@@ -135,7 +136,7 @@ class AsyncTest {
         /* When */
         async<String> {
             await(async<String> { error("Expected") })
-        }.wait()
+        }.testWait()
     }
 
     @Test(expected = IllegalStateException::class)
@@ -145,7 +146,7 @@ class AsyncTest {
             await(async<String> {
                 await<String> { error("Expected") }
             })
-        }.wait()
+        }.testWait()
     }
 
     @Test
@@ -154,10 +155,32 @@ class AsyncTest {
         val start = System.currentTimeMillis()
 
         /* When */
-        delay(100, MILLISECONDS).wait()
+        delay(100, MILLISECONDS).testWait()
 
         /* Then */
         expect(System.currentTimeMillis() - start).toBeGreaterThan(99)
     }
+
+    @Test
+    fun completedTask() {
+        /* Given */
+        val task = Task.completed(resultString)
+
+        /* When */
+        val result = task.testWait()
+
+        /* Then */
+        expect(result).toBe(resultString)
+    }
+
+    @Test(expected = UnsupportedOperationException::class)
+    fun erroredTask() {
+        /* Given */
+        val task = Task.errored<String>(UnsupportedOperationException())
+
+        /* When */
+        task.testWait()
+    }
 }
 
+private fun <T> Task<T>.testWait() = wait(1, SECONDS)
