@@ -5,6 +5,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 /**
  * Run asynchronous computations based on [c] coroutine parameter.
@@ -166,6 +167,44 @@ class Task<T>(
         erroredValue?.let { throw it }
 
         error("Neither completed nor errored value set.")
+    }
+
+    /**
+     * Blocks the current thread until this task has completed
+     * either successfully or unsuccessfully, or a timeout has passed.
+     *
+     * @param timeout the maximum time to wait
+     * @param unit the time unit of [timeout]
+     *
+     * @throws TimeoutException if the timeout has passed before the task was completed.
+     * @throws IllegalStateException if the task was already canceled.
+     */
+    fun wait(timeout: Long, unit: TimeUnit): T {
+        if (isCanceled()) throw IllegalStateException("Task is canceled.")
+
+        latch.await(timeout, unit)
+
+        if (latch.count > 0) throw TimeoutException()
+
+        completedValue?.let { return it }
+        erroredValue?.let { throw it }
+
+        error("Neither completed nor errored value set.")
+    }
+
+    companion object {
+
+        /**
+         * Creates a [Task] that is completed with value [t].
+         */
+        @JvmStatic
+        fun <T> completed(t: T) = Task<T>().apply { complete(t) }
+
+        /**
+         * Creates a [Task] that has errored with [t].
+         */
+        @JvmStatic
+        fun <T> errored(t: Throwable) = Task<T>().apply { handleError(t) }
     }
 }
 
