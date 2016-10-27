@@ -98,7 +98,7 @@ class Task<T>(
     private @Volatile var onComplete: ((T) -> Unit)? = null
     private @Volatile var onError: ((Throwable) -> Unit)? = null
 
-    private @Volatile var completedValue: T? = null
+    private @Volatile var completedValue: CompletedValue<T>? = null
     private @Volatile var erroredValue: Throwable? = null
 
     /** The task that we're currently awaiting on. */
@@ -119,7 +119,7 @@ class Task<T>(
         this.onComplete = onComplete
         this.onError = onError
 
-        completedValue?.let { onComplete(it) }
+        completedValue?.let { onComplete(it.value) }
         erroredValue?.let { onError(it) }
     }
 
@@ -129,7 +129,7 @@ class Task<T>(
 
     internal fun complete(value: T) {
         onComplete?.invoke(value)
-        completedValue = value
+        completedValue = CompletedValue(value)
         latch.countDown()
     }
 
@@ -163,7 +163,7 @@ class Task<T>(
         if (isCanceled()) throw IllegalStateException("Task is canceled.")
         latch.await()
 
-        completedValue?.let { return it }
+        completedValue?.let { return it.value }
         erroredValue?.let { throw it }
 
         error("Neither completed nor errored value set.")
@@ -186,7 +186,7 @@ class Task<T>(
 
         if (latch.count > 0) throw TimeoutException()
 
-        completedValue?.let { return it }
+        completedValue?.let { return it.value }
         erroredValue?.let { throw it }
 
         error("Neither completed nor errored value set.")
@@ -206,6 +206,8 @@ class Task<T>(
         @JvmStatic
         fun <T> errored(t: Throwable) = Task<T>().apply { handleError(t) }
     }
+
+    private class CompletedValue<T>(val value: T)
 }
 
 class AsyncController<T>(private val returnToMainThread: Boolean = false) {
