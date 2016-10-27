@@ -37,12 +37,30 @@ class AsyncTest {
     }
 
     @Test
+    fun `waiting on a task that directly completes with a null value`() {
+        /* When */
+        val result = async<String?> { null }.testWait()
+
+        /* Then */
+        expect(result).toBeNull()
+    }
+
+    @Test
     fun `waiting on an async that sleeps still returns the result`() {
         /* When */
         val result = async<String> { Thread.sleep(100); resultString }.testWait()
 
         /* Then */
         expect(result).toBe(resultString)
+    }
+
+    @Test
+    fun `waiting on a task that sleeps still returns the null value`() {
+        /* When */
+        val result = async<String?> { Thread.sleep(100); null }.testWait()
+
+        /* Then */
+        expect(result).toBeNull()
     }
 
     @Test
