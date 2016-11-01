@@ -1,8 +1,15 @@
 package com.nhaarman.async
 
 import com.nhaarman.expect.expect
+import com.nhaarman.mockito_kotlin.any
+import com.nhaarman.mockito_kotlin.mock
+import com.nhaarman.mockito_kotlin.verify
+import com.nhaarman.mockito_kotlin.whenever
 import org.junit.Before
 import org.junit.Test
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 import java.util.concurrent.TimeUnit.MILLISECONDS
 import java.util.concurrent.TimeUnit.SECONDS
 
@@ -165,6 +172,38 @@ class AsyncTest {
                 await<String> { error("Expected") }
             })
         }.testWait()
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    @Test
+    fun `awaiting on a retrofit call`() {
+        val call = mock<Call<String>>()
+        whenever(call.enqueue(any())).then {
+            (it.arguments[0] as Callback<String>).onResponse(call, Response.success(resultString))
+        }
+
+        /* When */
+        val result = async<String> {
+            await(call).body()
+        }.testWait()
+
+        /* Then */
+        expect(result).toBe(resultString)
+    }
+
+    @Test
+    fun `canceling a retrofit call`() {
+        /* Given */
+        val call = mock<Call<String>>()
+        val task = async<String> {
+            await(call).body()
+        }
+
+        /* When */
+        task.cancel()
+
+        /* Then */
+        verify(call).cancel()
     }
 
     @Test
