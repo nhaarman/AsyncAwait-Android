@@ -2,16 +2,21 @@ package com.nhaarman.async
 
 import com.nhaarman.expect.expect
 import com.nhaarman.mockito_kotlin.any
+import com.nhaarman.mockito_kotlin.doReturn
 import com.nhaarman.mockito_kotlin.mock
 import com.nhaarman.mockito_kotlin.verify
 import com.nhaarman.mockito_kotlin.whenever
+import io.reactivex.disposables.Disposable
 import org.junit.Before
 import org.junit.Test
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import rx.Subscription
 import java.util.concurrent.TimeUnit.MILLISECONDS
 import java.util.concurrent.TimeUnit.SECONDS
+import io.reactivex.Single as Single2
+import rx.Single as Single1
 
 @Suppress("IllegalIdentifier")
 class AsyncTest {
@@ -204,6 +209,66 @@ class AsyncTest {
 
         /* Then */
         verify(call).cancel()
+    }
+
+    @Test
+    fun `awaiting on an RxJava1 Single`() {
+        /* When */
+        val result = async<String> {
+            await(Single1.just(resultString))
+        }.testWait()
+
+        /* Then */
+        expect(result).toBe(resultString)
+    }
+
+    @Test
+    fun `canceling an RxJava1 Single`() {
+        /* Given */
+        val subscription = mock<Subscription>()
+        val single = mock<Single1<String>> {
+            on { subscribe(any(), any()) } doReturn subscription
+        }
+
+        val task = async<String> {
+            await(single)
+        }
+
+        /* When */
+        task.cancel()
+
+        /* Then */
+        verify(subscription).unsubscribe()
+    }
+
+    @Test
+    fun `awaiting on an RxJava2 Single`() {
+        /* When */
+        val result = async<String> {
+            await(Single2.just(resultString))
+        }.testWait()
+
+        /* Then */
+        expect(result).toBe(resultString)
+    }
+
+    @Test
+    fun `canceling an RxJava2 Single`() {
+        /* Given */
+        val disposable = mock<Disposable>()
+        val single = mock<Single2<String>> {
+            on { subscribe(any(), any()) } doReturn disposable
+        }
+
+        val task = async<String> {
+            await(single)
+        }
+
+        /* When */
+        task.cancel()
+
+        /* Then */
+        verify(disposable).dispose()
     }
 
     @Test
