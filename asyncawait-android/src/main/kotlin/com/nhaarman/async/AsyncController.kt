@@ -1,10 +1,14 @@
 package com.nhaarman.async
 
 import android.os.Looper
+import io.reactivex.disposables.Disposable
 import retrofit2.Call
 import retrofit2.Response
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import io.reactivex.Single as Single2
+import rx.Single as Single1
+import rx.Subscription as Subscription1
 
 /**
  * Run asynchronous computations based on [c] coroutine parameter.
@@ -121,6 +125,58 @@ class AsyncController<T>(private val returnToMainThread: Boolean = false) {
               { response ->
                   task.awaitDone()
                   if (!isCanceled()) resume(machine, response)
+              },
+              { throwable ->
+                  task.awaitDone()
+                  if (!isCanceled()) resumeWithException(machine, throwable)
+              }
+        )
+    }
+
+    suspend fun <R> await(single: Single1<R>, machine: Continuation<R>) {
+        if (isCanceled()) return
+        var subscription: Subscription1? = null
+
+        task.awaitingOn(object : Cancelable {
+            override fun cancel() {
+                subscription?.unsubscribe()
+            }
+
+            override fun isCanceled(): Boolean {
+                return subscription?.isUnsubscribed ?: false
+            }
+        })
+
+        subscription = single.subscribe(
+              { result ->
+                  task.awaitDone()
+                  if (!isCanceled()) resume(machine, result)
+              },
+              { throwable ->
+                  task.awaitDone()
+                  if (!isCanceled()) resumeWithException(machine, throwable)
+              }
+        )
+    }
+
+    suspend fun <R> await(single: Single2<R>, machine: Continuation<R>) {
+        if (isCanceled()) return
+        var disposable: Disposable? = null
+
+        task.awaitingOn(object : Cancelable {
+            override fun cancel() {
+                disposable?.dispose()
+            }
+
+            override fun isCanceled(): Boolean {
+                return disposable?.isDisposed ?: false
+            }
+        })
+
+        disposable = single.subscribe(
+              { result ->
+                  task.awaitDone()
+                  if (!isCanceled()) resume(machine, result)
               },
               { throwable ->
                   task.awaitDone()

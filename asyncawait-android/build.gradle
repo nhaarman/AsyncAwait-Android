@@ -13,6 +13,8 @@ android {
 dependencies {
     compile kotlinStdLib
     provided retrofit2
+    provided rxJava1
+    provided rxJava2
 
     testCompile junit
     testCompile expectKt
