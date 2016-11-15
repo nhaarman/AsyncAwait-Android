@@ -6,6 +6,7 @@ import retrofit2.Call
 import retrofit2.Response
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import kotlin.reflect.KProperty
 import io.reactivex.Single as Single2
 import rx.Single as Single1
 import rx.Subscription as Subscription1
@@ -133,8 +134,21 @@ class AsyncController<T>(private val returnToMainThread: Boolean = false) {
     }
 
     /**
+     * Suspends the coroutine call until callee task completes.
+     *
+     * @return the result of the callee.
+     */
+    suspend operator fun <R> Task<R>.getValue(
+          thisRef: Any?,
+          property: KProperty<*>,
+          machine: Continuation<R>
+    ) {
+        await(this, machine)
+    }
+
+    /**
      * For usage with Retrofit 2.
-     * Enqueues [call] to be ran asynchronously and suspends the coroutine call until [call] completes.
+     * Enqueues [call] to be ran asynchronously and suspends the coroutine until [call] completes.
      *
      * @return the result of [call].
      */
@@ -153,6 +167,26 @@ class AsyncController<T>(private val returnToMainThread: Boolean = false) {
         )
     }
 
+    /**
+     * For usage with Retrofit 2
+     * Enqueues the callee Call to be ran asynchronously and suspends the coroutine until the callee completes.
+     *
+     * @return the result of the callee.
+     */
+    suspend operator fun <R> Call<R>.getValue(
+          thisRef: Any?,
+          property: KProperty<*>,
+          machine: Continuation<Response<R>>
+    ) {
+        await(this, machine)
+    }
+
+    /**
+     * For usage with RxJava 1.x
+     * Subscribes to the [single] and suspends the coroutine until [single] completes.
+     *
+     * @return the completed result of [single].
+     */
     suspend fun <R> await(single: Single1<R>, machine: Continuation<R>) {
         if (isCanceled()) return
         var subscription: Subscription1? = null
@@ -179,6 +213,26 @@ class AsyncController<T>(private val returnToMainThread: Boolean = false) {
         )
     }
 
+    /**
+     * For usage with RxJava 1.x
+     * Subscribes to the callee [Single][rx.Single] and suspends the coroutine until the callee completes.
+     *
+     * @return the completed result of the callee [Single][rx.Single].
+     */
+    suspend operator fun <R> Single1<R>.getValue(
+          thisRef: Any?,
+          property: KProperty<*>,
+          machine: Continuation<R>
+    ) {
+        await(this, machine)
+    }
+
+    /**
+     * For usage with RxJava 2.x
+     * Subscribes to the [single] and suspends the coroutine until [single] completes.
+     *
+     * @return the completed result of [single].
+     */
     suspend fun <R> await(single: Single2<R>, machine: Continuation<R>) {
         if (isCanceled()) return
         var disposable: Disposable? = null
@@ -206,6 +260,20 @@ class AsyncController<T>(private val returnToMainThread: Boolean = false) {
     }
 
     /**
+     * For usage with RxJava 2.x
+     * Subscribes to the callee [Single][io.reactivex.Single] and suspends the coroutine until the callee completes.
+     *
+     * @return the completed result of the callee [Single][io.reactivex.Single].
+     */
+    suspend operator fun <R> Single2<R>.getValue(
+          thisRef: Any?,
+          property: KProperty<*>,
+          machine: Continuation<R>
+    ) {
+        await(this, machine)
+    }
+
+    /**
      * Runs [f] asynchronously and suspends the coroutine call until [f] completes.
      *
      * @return the result of [f].
@@ -220,6 +288,19 @@ class AsyncController<T>(private val returnToMainThread: Boolean = false) {
                 if (!isCanceled()) resumeWithException(machine, e)
             }
         })
+    }
+
+    /**
+     * Runs the callee function asynchronously and suspends the coroutine call until the function completes.
+     *
+     * @return the result of the callee function.
+     */
+    suspend operator fun <R> (() -> R).getValue(
+          thisRef: Any?,
+          property: KProperty<*>,
+          machine: Continuation<R>
+    ) {
+        await(this, machine)
     }
 
     private fun <R> resume(machine: Continuation<R>, result: R) {
