@@ -1,5 +1,5 @@
 ext {
-    kotlinVersion = "1.1-M02"
+    kotlinVersion = "1.1-M03"
 
     kotlinGradlePlugin = "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
     kotlinStdLib = "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
