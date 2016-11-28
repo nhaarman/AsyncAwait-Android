@@ -5,7 +5,9 @@ ext {
     kotlinStdLib = "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
 
     androidBuildTools = "com.android.tools.build:gradle:2.2.2"
+    androidMavenPlugin = "com.github.dcendents:android-maven-gradle-plugin:1.5"
     dokkaGradlePlugin = "org.jetbrains.dokka:dokka-gradle-plugin:0.9.9"
+    gradleBintrayPlugin = "com.jfrog.bintray.gradle:gradle-bintray-plugin:1.7.3"
     gradleVersionsPlugin = "com.github.ben-manes:gradle-versions-plugin:0.13.0"
 
     retrofit2 = "com.squareup.retrofit2:retrofit:2.1.0"
