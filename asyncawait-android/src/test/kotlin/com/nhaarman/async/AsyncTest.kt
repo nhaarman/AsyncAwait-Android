@@ -1,10 +1,18 @@
 package com.nhaarman.async
 
 import com.nhaarman.expect.expect
+import com.nhaarman.mockito_kotlin.*
+import io.reactivex.disposables.Disposable
 import org.junit.Before
 import org.junit.Test
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import rx.Subscription
 import java.util.concurrent.TimeUnit.MILLISECONDS
 import java.util.concurrent.TimeUnit.SECONDS
+import io.reactivex.Single as Single2
+import rx.Single as Single1
 
 @Suppress("IllegalIdentifier")
 class AsyncTest {
@@ -165,6 +173,195 @@ class AsyncTest {
                 await<String> { error("Expected") }
             })
         }.testWait()
+    }
+
+    @Test
+    fun `awaiting on a delegated task`() {
+        /* When */
+        val result = async<String> {
+            val a by async<String> { resultString }
+            a
+        }.testWait()
+
+        /* Then */
+        expect(result).toBe(resultString)
+    }
+
+    @Test
+    fun `awaiting on a delegated lambda`() {
+        /* When */
+        val result = async<String> {
+            val a by { resultString }
+            a
+        }.testWait()
+
+        /* Then */
+        expect(result).toBe(resultString)
+    }
+
+    @Test(expected = IllegalStateException::class)
+    fun `awaiting on a delegated task that errors`() {
+        /* When */
+        async<String> {
+            val a by async<String> { error("Expected") }
+            a
+        }.testWait()
+    }
+
+    @Test
+    fun `delegation evaluates in order`() {
+        /* Given */
+        val a = mock<() -> Unit>()
+        val b = mock<() -> Unit>()
+
+        /* When */
+        async {
+            val aResult by async { a() }
+            val bResult by async { b() }
+
+            bResult
+            aResult
+        }
+
+        /* Then */
+        inOrder(a, b) {
+            verify(a).invoke()
+            verify(b).invoke()
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    @Test
+    fun `awaiting on a retrofit call`() {
+        val call = mock<Call<String>>()
+        whenever(call.enqueue(any())).then {
+            (it.arguments[0] as Callback<String>).onResponse(call, Response.success(resultString))
+        }
+
+        /* When */
+        val result = async<String> {
+            await(call).body()
+        }.testWait()
+
+        /* Then */
+        expect(result).toBe(resultString)
+    }
+
+    @Test
+    fun `canceling a retrofit call`() {
+        /* Given */
+        val call = mock<Call<String>>()
+        val task = async<String> {
+            await(call).body()
+        }
+
+        /* When */
+        task.cancel()
+
+        /* Then */
+        verify(call).cancel()
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    @Test
+    fun `awaiting on a delegated retrofit call`() {
+        val call = mock<Call<String>>()
+        whenever(call.enqueue(any())).then {
+            (it.arguments[0] as Callback<String>).onResponse(call, Response.success(resultString))
+        }
+
+        /* When */
+        val result = async<String> {
+            val a by call
+            a.body()
+        }.testWait()
+
+        /* Then */
+        expect(result).toBe(resultString)
+    }
+
+    @Test
+    fun `awaiting on an RxJava1 Single`() {
+        /* When */
+        val result = async<String> {
+            await(Single1.just(resultString))
+        }.testWait()
+
+        /* Then */
+        expect(result).toBe(resultString)
+    }
+
+    @Test
+    fun `canceling an RxJava1 Single`() {
+        /* Given */
+        val subscription = mock<Subscription>()
+        val single = mock<Single1<String>> {
+            on { subscribe(any(), any()) } doReturn subscription
+        }
+
+        val task = async<String> {
+            await(single)
+        }
+
+        /* When */
+        task.cancel()
+
+        /* Then */
+        verify(subscription).unsubscribe()
+    }
+
+    @Test
+    fun `awaiting on a delegated RxJava1 Single`() {
+        /* When */
+        val result = async<String> {
+            val a by Single1.just(resultString)
+            a
+        }.testWait()
+
+        /* Then */
+        expect(result).toBe(resultString)
+    }
+
+    @Test
+    fun `awaiting on an RxJava2 Single`() {
+        /* When */
+        val result = async<String> {
+            await(Single2.just(resultString))
+        }.testWait()
+
+        /* Then */
+        expect(result).toBe(resultString)
+    }
+
+    @Test
+    fun `canceling an RxJava2 Single`() {
+        /* Given */
+        val disposable = mock<Disposable>()
+        val single = mock<Single2<String>> {
+            on { subscribe(any(), any()) } doReturn disposable
+        }
+
+        val task = async<String> {
+            await(single)
+        }
+
+        /* When */
+        task.cancel()
+
+        /* Then */
+        verify(disposable).dispose()
+    }
+
+    @Test
+    fun `awaiting on a delegated RxJava2 Single`() {
+        /* When */
+        val result = async<String> {
+            val a by Single2.just(resultString)
+            a
+        }.testWait()
+
+        /* Then */
+        expect(result).toBe(resultString)
     }
 
     @Test

@@ -1,13 +1,22 @@
 ext {
-    kotlinVersion = "1.1-M02"
+    kotlinVersion = "1.1-M03"
 
-    androidBuildTools = "com.android.tools.build:gradle:2.2.2"
-    androidSupportTestRunner = "com.android.support.test:runner:0.5"
-    androidSupportTestRules = "com.android.support.test:rules:0.5"
-    dokkaGradlePlugin = "org.jetbrains.dokka:dokka-gradle-plugin:0.9.9"
-    expectKt = "com.nhaarman:expect.kt:0.6.0"
-    gradleVersionsPlugin = "com.github.ben-manes:gradle-versions-plugin:0.13.0"
-    junit = "junit:junit:4.12"
     kotlinGradlePlugin = "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
     kotlinStdLib = "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
+
+    androidBuildTools = "com.android.tools.build:gradle:2.2.2"
+    androidMavenPlugin = "com.github.dcendents:android-maven-gradle-plugin:1.5"
+    dokkaGradlePlugin = "org.jetbrains.dokka:dokka-gradle-plugin:0.9.9"
+    gradleBintrayPlugin = "com.jfrog.bintray.gradle:gradle-bintray-plugin:1.7.3"
+    gradleVersionsPlugin = "com.github.ben-manes:gradle-versions-plugin:0.13.0"
+
+    retrofit2 = "com.squareup.retrofit2:retrofit:2.1.0"
+    rxJava1 = "io.reactivex:rxjava:1.2.3"
+    rxJava2 = "io.reactivex.rxjava2:rxjava:2.0.1"
+
+    androidSupportTestRunner = "com.android.support.test:runner:0.5"
+    androidSupportTestRules = "com.android.support.test:rules:0.5"
+    expectKt = "com.nhaarman:expect.kt:0.6.0"
+    junit = "junit:junit:4.12"
+    mockitoKotlin = "com.nhaarman:mockito-kotlin:0.12.2"
 }

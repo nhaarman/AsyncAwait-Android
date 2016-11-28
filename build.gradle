@@ -12,6 +12,8 @@ buildscript {
         classpath gradleVersionsPlugin
         classpath kotlinGradlePlugin
         classpath dokkaGradlePlugin
+        classpath gradleBintrayPlugin
+        classpath androidMavenPlugin
     }
 }
 

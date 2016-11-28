@@ -1,11 +1,15 @@
 package com.nhaarman.async
 
 import android.os.Looper
-import java.util.concurrent.CountDownLatch
+import io.reactivex.disposables.Disposable
+import retrofit2.Call
+import retrofit2.Response
 import java.util.concurrent.Executors
-import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
+import kotlin.reflect.KProperty
+import io.reactivex.Single as Single2
+import rx.Single as Single1
+import rx.Subscription as Subscription1
 
 /**
  * Run asynchronous computations based on [c] coroutine parameter.
@@ -56,9 +60,29 @@ fun async(coroutine c: AsyncController<Unit>.() -> Continuation<Unit>): Task<Uni
  * as the awaited code is completed.
  *
  * @param c a coroutine representing asynchronous computations
+ * @param T the return type of the coroutine.
  *
  * @return Task object representing result of computations
  */
+fun <T> asyncUI(coroutine c: AsyncController<T>.() -> Continuation<Unit>): Task<T> {
+    val controller = AsyncController<T>(returnToMainThread = true)
+    controller.c().resume(Unit)
+    return controller.task
+}
+
+/**
+ * Run asynchronous computations based on [c] coroutine parameter.
+ *
+ * Execution starts immediately within the 'async' call and it runs until
+ * the first suspension point is reached (an 'await' call).
+ * The remaining part of the coroutine will be executed *on the main thread*
+ * as the awaited code is completed.
+ *
+ * @param c a coroutine representing asynchronous computations
+ *
+ * @return Task object representing result of computations
+ */
+@JvmName("asyncUIWithoutParameter")
 fun asyncUI(coroutine c: AsyncController<Unit>.() -> Continuation<Unit>): Task<Unit> {
     val controller = AsyncController<Unit>(returnToMainThread = true)
     controller.c().resume(Unit)
@@ -83,133 +107,6 @@ fun delay(time: Long, unit: TimeUnit): Task<Unit> {
     }
 }
 
-/**
- * A class that represents a cancelable task that can be awaited on.
- * When the task completes normally, an instance of type [T] is passed
- * as the result to the 'await' call.
- */
-class Task<T>(
-      private val cancelable: Cancelable = CancelableImpl()
-) : Cancelable by cancelable {
-
-    /** The Future that was created to start the coroutine. */
-    private var runningTask: Future<*>? = null
-
-    private @Volatile var onComplete: ((T) -> Unit)? = null
-    private @Volatile var onError: ((Throwable) -> Unit)? = null
-
-    private @Volatile var completedValue: CompletedValue<T>? = null
-    private @Volatile var erroredValue: Throwable? = null
-
-    /** The task that we're currently awaiting on. */
-    private var current: Cancelable? = null
-
-    internal fun awaitingOn(cancelable: Cancelable) {
-        if (current != null) error("Already waiting on $current.")
-        current = cancelable
-    }
-
-    internal fun awaitDone() {
-        current = null
-    }
-
-    private val latch = CountDownLatch(1)
-
-    internal fun whenComplete(onComplete: (T) -> Unit, onError: (Throwable) -> Unit) {
-        this.onComplete = onComplete
-        this.onError = onError
-
-        completedValue?.let { onComplete(it.value) }
-        erroredValue?.let { onError(it) }
-    }
-
-    internal fun startedWith(future: Future<*>) {
-        runningTask = future
-    }
-
-    internal fun complete(value: T) {
-        onComplete?.invoke(value)
-        completedValue = CompletedValue(value)
-        latch.countDown()
-    }
-
-    internal fun handleError(t: Throwable): Boolean {
-        val result = onError?.invoke(t) != null
-        erroredValue = t
-        latch.countDown()
-        return result
-    }
-
-    override fun cancel() {
-        cancelable.cancel()
-
-        current?.cancel()
-        current = null
-
-        runningTask?.cancel(true)
-        runningTask = null
-
-        onComplete = null
-        onError = null
-    }
-
-    /**
-     * Blocks the current thread until this task has completed
-     * either successfully or unsuccessfully.
-     *
-     * @throws IllegalStateException if the task was already canceled.
-     */
-    fun wait(): T {
-        if (isCanceled()) throw IllegalStateException("Task is canceled.")
-        latch.await()
-
-        completedValue?.let { return it.value }
-        erroredValue?.let { throw it }
-
-        error("Neither completed nor errored value set.")
-    }
-
-    /**
-     * Blocks the current thread until this task has completed
-     * either successfully or unsuccessfully, or a timeout has passed.
-     *
-     * @param timeout the maximum time to wait
-     * @param unit the time unit of [timeout]
-     *
-     * @throws TimeoutException if the timeout has passed before the task was completed.
-     * @throws IllegalStateException if the task was already canceled.
-     */
-    fun wait(timeout: Long, unit: TimeUnit): T {
-        if (isCanceled()) throw IllegalStateException("Task is canceled.")
-
-        latch.await(timeout, unit)
-
-        if (latch.count > 0) throw TimeoutException()
-
-        completedValue?.let { return it.value }
-        erroredValue?.let { throw it }
-
-        error("Neither completed nor errored value set.")
-    }
-
-    companion object {
-
-        /**
-         * Creates a [Task] that is completed with value [t].
-         */
-        @JvmStatic
-        fun <T> completed(t: T) = Task<T>().apply { complete(t) }
-
-        /**
-         * Creates a [Task] that has errored with [t].
-         */
-        @JvmStatic
-        fun <T> errored(t: Throwable) = Task<T>().apply { handleError(t) }
-    }
-
-    private class CompletedValue<T>(val value: T)
-}
-
 class AsyncController<T>(private val returnToMainThread: Boolean = false) {
 
     internal val task = Task<T>()
@@ -217,14 +114,94 @@ class AsyncController<T>(private val returnToMainThread: Boolean = false) {
     private fun isCanceled() = task.isCanceled()
 
     /**
-     * Suspends the coroutine call until [c] completes.
+     * Suspends the coroutine call until [task] completes.
      *
-     * @return the result of [c].
+     * @return the result of [task].
      */
-    suspend fun <R> await(c: Task<R>, machine: Continuation<R>) {
+    suspend fun <R> await(task: Task<R>, machine: Continuation<R>) {
         if (isCanceled()) return
-        task.awaitingOn(c)
-        c.whenComplete(
+        this.task.awaitingOn(task)
+        task.whenComplete(
+              { result ->
+                  this.task.awaitDone()
+                  if (!isCanceled()) resume(machine, result)
+              },
+              { throwable ->
+                  this.task.awaitDone()
+                  if (!isCanceled()) resumeWithException(machine, throwable)
+              }
+        )
+    }
+
+    /**
+     * Suspends the coroutine call until callee task completes.
+     *
+     * @return the result of the callee.
+     */
+    suspend operator fun <R> Task<R>.getValue(
+          thisRef: Any?,
+          property: KProperty<*>,
+          machine: Continuation<R>
+    ) {
+        await(this, machine)
+    }
+
+    /**
+     * For usage with Retrofit 2.
+     * Enqueues [call] to be ran asynchronously and suspends the coroutine until [call] completes.
+     *
+     * @return the result of [call].
+     */
+    suspend fun <R> await(call: Call<R>, machine: Continuation<Response<R>>) {
+        if (isCanceled()) return
+        task.awaitingOn(CancelableCall(call))
+        call.enqueue(
+              { response ->
+                  task.awaitDone()
+                  if (!isCanceled()) resume(machine, response)
+              },
+              { throwable ->
+                  task.awaitDone()
+                  if (!isCanceled()) resumeWithException(machine, throwable)
+              }
+        )
+    }
+
+    /**
+     * For usage with Retrofit 2
+     * Enqueues the callee Call to be ran asynchronously and suspends the coroutine until the callee completes.
+     *
+     * @return the result of the callee.
+     */
+    suspend operator fun <R> Call<R>.getValue(
+          thisRef: Any?,
+          property: KProperty<*>,
+          machine: Continuation<Response<R>>
+    ) {
+        await(this, machine)
+    }
+
+    /**
+     * For usage with RxJava 1.x
+     * Subscribes to the [single] and suspends the coroutine until [single] completes.
+     *
+     * @return the completed result of [single].
+     */
+    suspend fun <R> await(single: Single1<R>, machine: Continuation<R>) {
+        if (isCanceled()) return
+        var subscription: Subscription1? = null
+
+        task.awaitingOn(object : Cancelable {
+            override fun cancel() {
+                subscription?.unsubscribe()
+            }
+
+            override fun isCanceled(): Boolean {
+                return subscription?.isUnsubscribed ?: false
+            }
+        })
+
+        subscription = single.subscribe(
               { result ->
                   task.awaitDone()
                   if (!isCanceled()) resume(machine, result)
@@ -234,6 +211,66 @@ class AsyncController<T>(private val returnToMainThread: Boolean = false) {
                   if (!isCanceled()) resumeWithException(machine, throwable)
               }
         )
+    }
+
+    /**
+     * For usage with RxJava 1.x
+     * Subscribes to the callee [Single][rx.Single] and suspends the coroutine until the callee completes.
+     *
+     * @return the completed result of the callee [Single][rx.Single].
+     */
+    suspend operator fun <R> Single1<R>.getValue(
+          thisRef: Any?,
+          property: KProperty<*>,
+          machine: Continuation<R>
+    ) {
+        await(this, machine)
+    }
+
+    /**
+     * For usage with RxJava 2.x
+     * Subscribes to the [single] and suspends the coroutine until [single] completes.
+     *
+     * @return the completed result of [single].
+     */
+    suspend fun <R> await(single: Single2<R>, machine: Continuation<R>) {
+        if (isCanceled()) return
+        var disposable: Disposable? = null
+
+        task.awaitingOn(object : Cancelable {
+            override fun cancel() {
+                disposable?.dispose()
+            }
+
+            override fun isCanceled(): Boolean {
+                return disposable?.isDisposed ?: false
+            }
+        })
+
+        disposable = single.subscribe(
+              { result ->
+                  task.awaitDone()
+                  if (!isCanceled()) resume(machine, result)
+              },
+              { throwable ->
+                  task.awaitDone()
+                  if (!isCanceled()) resumeWithException(machine, throwable)
+              }
+        )
+    }
+
+    /**
+     * For usage with RxJava 2.x
+     * Subscribes to the callee [Single][io.reactivex.Single] and suspends the coroutine until the callee completes.
+     *
+     * @return the completed result of the callee [Single][io.reactivex.Single].
+     */
+    suspend operator fun <R> Single2<R>.getValue(
+          thisRef: Any?,
+          property: KProperty<*>,
+          machine: Continuation<R>
+    ) {
+        await(this, machine)
     }
 
     /**
@@ -251,6 +288,19 @@ class AsyncController<T>(private val returnToMainThread: Boolean = false) {
                 if (!isCanceled()) resumeWithException(machine, e)
             }
         })
+    }
+
+    /**
+     * Runs the callee function asynchronously and suspends the coroutine call until the function completes.
+     *
+     * @return the result of the callee function.
+     */
+    suspend operator fun <R> (() -> R).getValue(
+          thisRef: Any?,
+          property: KProperty<*>,
+          machine: Continuation<R>
+    ) {
+        await(this, machine)
     }
 
     private fun <R> resume(machine: Continuation<R>, result: R) {

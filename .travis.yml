@@ -26,7 +26,7 @@ before_script:
   - adb shell input keyevent 82 &
 
 script:
-  - ./gradlew test connectedCheck -PisRelease=false
+  - ./gradlew test connectedCheck dokka -PisRelease=false 
 
 notifications:
   email: false

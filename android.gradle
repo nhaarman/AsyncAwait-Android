@@ -1,7 +1,7 @@
 project.android.compileSdkVersion 25;
 project.android.buildToolsVersion "25.0.0"
 
-project.android.defaultConfig.minSdkVersion 21
+project.android.defaultConfig.minSdkVersion 16
 project.android.defaultConfig.targetSdkVersion 25
 
 project.android.lintOptions.warningsAsErrors = true
