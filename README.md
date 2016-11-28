@@ -13,11 +13,11 @@ repositories {
     mavenCentral()
 }
 dependencies {
-    testCompile "com.nhaarman:asyncawait-android:x.x.x"
+    compile "com.nhaarman:asyncawait-android:x.x.x"
 }
 ```
 
-AsyncAwait-Android uses the 1.1-M02 eap of Kotlin. See the [How to try it](https://blog.jetbrains.com/kotlin/2016/07/first-glimpse-of-kotlin-1-1-coroutines-type-aliases-and-more/) section for details.
+AsyncAwait-Android uses the 1.1-M03 eap of Kotlin. See the [How to try it](https://blog.jetbrains.com/kotlin/2016/07/first-glimpse-of-kotlin-1-1-coroutines-type-aliases-and-more/) section for details.
 
 ## Example
 
