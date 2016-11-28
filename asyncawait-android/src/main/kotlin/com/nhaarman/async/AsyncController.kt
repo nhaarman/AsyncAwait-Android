@@ -59,9 +59,29 @@ fun async(coroutine c: AsyncController<Unit>.() -> Continuation<Unit>): Task<Uni
  * as the awaited code is completed.
  *
  * @param c a coroutine representing asynchronous computations
+ * @param T the return type of the coroutine.
  *
  * @return Task object representing result of computations
  */
+fun <T> asyncUI(coroutine c: AsyncController<T>.() -> Continuation<Unit>): Task<T> {
+    val controller = AsyncController<T>(returnToMainThread = true)
+    controller.c().resume(Unit)
+    return controller.task
+}
+
+/**
+ * Run asynchronous computations based on [c] coroutine parameter.
+ *
+ * Execution starts immediately within the 'async' call and it runs until
+ * the first suspension point is reached (an 'await' call).
+ * The remaining part of the coroutine will be executed *on the main thread*
+ * as the awaited code is completed.
+ *
+ * @param c a coroutine representing asynchronous computations
+ *
+ * @return Task object representing result of computations
+ */
+@JvmName("asyncUIWithoutParameter")
 fun asyncUI(coroutine c: AsyncController<Unit>.() -> Continuation<Unit>): Task<Unit> {
     val controller = AsyncController<Unit>(returnToMainThread = true)
     controller.c().resume(Unit)
