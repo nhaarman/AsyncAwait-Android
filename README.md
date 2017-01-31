@@ -1,6 +1,9 @@
 # AsyncAwait-Android
 [ ![Download](https://maven-badges.herokuapp.com/maven-central/com.nhaarman/asyncawait-android/badge.svg) ](https://maven-badges.herokuapp.com/maven-central/com.nhaarman/asyncawait-android)
 
+**Warning!**
+This library was created for Kotlin 1.1-M03. Since M04, the API has changed. See [Kotlin-Coroutines](https://github.com/Kotlin/kotlin-coroutines) for more info.
+
 A library that provides the async/await concept for Android using the coroutines feature in Kotlin 1.1.
 
 ## Install
